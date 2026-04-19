@@ -117,6 +117,14 @@
     animation: fadeUp 1.5s ease-out 0.7s both;
   }
 
+  .hero-author {
+    font-family: 'Caveat', cursive;
+    color: rgba(255,255,255,0.7);
+    font-size: 1.15rem;
+    margin-bottom: 2rem;
+    animation: fadeUp 1.5s ease-out 0.9s both;
+  }
+
   .scroll-cue {
     animation: fadeUp 1.5s ease-out 1.2s both, bounce 2s ease-in-out infinite 2.5s;
     color: var(--sun-glow);
@@ -561,7 +569,7 @@
 
 <div class="reading-progress" id="progressBar"></div>
 
-<button class="audio-toggle paused" id="audioBtn" title="Toggle ambient nature sounds" onclick="toggleAudio()">
+<button class="audio-toggle paused" id="audioBtn" title="Toggle ambient bird sounds" onclick="toggleAudio()">
   <span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span>
 </button>
 
@@ -572,6 +580,7 @@
     <div class="hero-subtitle">A Climate Story from the Warm Heart of Africa</div>
     <h1>Planting <em>Hope</em> in a<br>Warming World</h1>
     <p class="hero-tagline">How Simeon Kalua is transforming communities through permaculture, climate justice, and the quiet power of caring for the land.</p>
+    <p class="hero-author">by Precious Mastala</p>
     <div class="scroll-cue" onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">&#8964;</div>
   </div>
 </section>
@@ -748,37 +757,49 @@
 
   document.querySelectorAll('.section-block').forEach(el => observer.observe(el));
 
-  let audioCtx, isPlaying = false;
+  let audioCtx, isPlaying = false, chirpInterval;
+
+  function playChirp() {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    const now = audioCtx.currentTime;
+    const freq = 2000 + Math.random() * 3000;
+    const chirps = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < chirps; i++) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq + Math.random() * 500, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * (0.8 + Math.random() * 0.5), now + 0.06 + i * 0.12);
+      gain.gain.setValueAtTime(0, now + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.015 + Math.random() * 0.01, now + 0.02 + i * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08 + i * 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + i * 0.12);
+      osc.stop(now + 0.1 + i * 0.12);
+    }
+  }
+
+  function scheduleChirps() {
+    playChirp();
+    const nextDelay = 800 + Math.random() * 3000;
+    chirpInterval = setTimeout(scheduleChirps, nextDelay);
+  }
 
   function toggleAudio() {
     const btn = document.getElementById('audioBtn');
     if (!isPlaying) {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const bufferSize = 2 * audioCtx.sampleRate;
-        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-        const noiseNode = audioCtx.createBufferSource();
-        noiseNode.buffer = noiseBuffer;
-        noiseNode.loop = true;
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 400;
-        filter.Q.value = 0.5;
-        const gainNode = audioCtx.createGain();
-        gainNode.gain.value = 0.06;
-        noiseNode.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        noiseNode.start();
       } else {
         audioCtx.resume();
       }
+      scheduleChirps();
       isPlaying = true;
       btn.classList.remove('paused');
     } else {
-      audioCtx.suspend();
+      clearTimeout(chirpInterval);
+      if (audioCtx) audioCtx.suspend();
       isPlaying = false;
       btn.classList.add('paused');
     }
